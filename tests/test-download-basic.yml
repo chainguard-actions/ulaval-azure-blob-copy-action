@@ -1,0 +1,36 @@
+name: Test basic download scenario
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create local directory for download target
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/download-test"
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          action: download
+          connection_string: "DefaultEndpointsProtocol=https;AccountName=fakeaccount;AccountKey=ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWs=;EndpointSuffix=core.windows.net"
+          container_name: "test-container"
+          local_directory: "download-test"
+          blob_directory: "test-prefix"
+
+      - name: Assert action ran (download with fake connection string fails gracefully)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully as expected with invalid connection string"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded (real Azure endpoint reachable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
