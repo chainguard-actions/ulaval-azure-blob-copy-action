@@ -1,0 +1,39 @@
+name: Test upload to blob storage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AZ_CONN: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start Azurite and create container
+        run: |
+          bash "$GITHUB_WORKSPACE/tests/fixtures/start-azurite.sh"
+          NODE_PATH=/tmp/az/node_modules node "$GITHUB_WORKSPACE/tests/fixtures/azhelper.js" create-container uploadtest
+      - name: Prepare local files
+        run: |
+          rm -rf "$RUNNER_TEMP/upload-src"
+          mkdir -p "$RUNNER_TEMP/upload-src/sub"
+          echo "hello root" > "$RUNNER_TEMP/upload-src/root.txt"
+          echo "nested content" > "$RUNNER_TEMP/upload-src/sub/nested.txt"
+      - id: action
+        uses: .
+        with:
+          action: upload
+          connection_string: ${{ env.AZ_CONN }}
+          container_name: uploadtest
+          local_directory: ${{ runner.temp }}/upload-src
+      - name: Assert blobs uploaded
+        run: |
+          export NODE_PATH=/tmp/az/node_modules
+          H="$GITHUB_WORKSPACE/tests/fixtures/azhelper.js"
+          LIST="$(node "$H" list uploadtest)"
+          echo "blobs:"; echo "$LIST"
+          echo "$LIST" | grep -qx "root.txt" || { echo "FAIL: root.txt missing"; exit 1; }
+          echo "$LIST" | grep -qx "sub/nested.txt" || { echo "FAIL: sub/nested.txt missing"; exit 1; }
+          C="$(node "$H" get uploadtest sub/nested.txt)"
+          echo "content: $C"
+          [ "$C" = "nested content" ] || { echo "FAIL: wrong content"; exit 1; }
+          echo "PASS"

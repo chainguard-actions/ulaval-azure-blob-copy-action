@@ -1,0 +1,54 @@
+name: Test upload with blob_directory and http_headers
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AZ_CONN: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start Azurite and create container
+        run: |
+          bash "$GITHUB_WORKSPACE/tests/fixtures/start-azurite.sh"
+          NODE_PATH=/tmp/az/node_modules node "$GITHUB_WORKSPACE/tests/fixtures/azhelper.js" create-container headerstest
+      - name: Prepare local files
+        run: |
+          rm -rf "$RUNNER_TEMP/hdr-src"
+          mkdir -p "$RUNNER_TEMP/hdr-src/js"
+          echo "console.log(1);" > "$RUNNER_TEMP/hdr-src/js/app.js"
+          echo "<html></html>" > "$RUNNER_TEMP/hdr-src/index.html"
+      - id: action
+        uses: .
+        with:
+          action: upload
+          connection_string: ${{ env.AZ_CONN }}
+          container_name: headerstest
+          blob_directory: site/v1
+          local_directory: ${{ runner.temp }}/hdr-src
+          http_headers: |
+            - glob: "**/*.js"
+              headers:
+                Cache-Control: public, max-age=604800, immutable
+                Content-Type: application/javascript
+                Content-Language: fr-CA
+            - glob: "**/*"
+              headers:
+                Cache-Control: public, no-cache
+      - name: Assert blobs and headers
+        run: |
+          export NODE_PATH=/tmp/az/node_modules
+          H="$GITHUB_WORKSPACE/tests/fixtures/azhelper.js"
+          LIST="$(node "$H" list headerstest)"
+          echo "blobs:"; echo "$LIST"
+          echo "$LIST" | grep -qx "site/v1/js/app.js" || { echo "FAIL: site/v1/js/app.js missing"; exit 1; }
+          echo "$LIST" | grep -qx "site/v1/index.html" || { echo "FAIL: site/v1/index.html missing"; exit 1; }
+          JS="$(node "$H" props headerstest site/v1/js/app.js)"
+          echo "js props: $JS"
+          echo "$JS" | grep -q '"cacheControl":"public, max-age=604800, immutable"' || { echo "FAIL: js cache-control"; exit 1; }
+          echo "$JS" | grep -q '"contentType":"application/javascript"' || { echo "FAIL: js content-type"; exit 1; }
+          echo "$JS" | grep -q '"contentLanguage":"fr-CA"' || { echo "FAIL: js content-language"; exit 1; }
+          HTML="$(node "$H" props headerstest site/v1/index.html)"
+          echo "html props: $HTML"
+          echo "$HTML" | grep -q '"cacheControl":"public, no-cache"' || { echo "FAIL: html cache-control"; exit 1; }
+          echo "PASS"

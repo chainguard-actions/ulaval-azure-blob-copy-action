@@ -1,0 +1,43 @@
+name: Test download from blob storage
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AZ_CONN: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start Azurite and seed blobs
+        run: |
+          bash "$GITHUB_WORKSPACE/tests/fixtures/start-azurite.sh"
+          export NODE_PATH=/tmp/az/node_modules
+          H="$GITHUB_WORKSPACE/tests/fixtures/azhelper.js"
+          node "$H" create-container downloadtest
+          node "$H" put downloadtest "data/a.txt" "alpha"
+          node "$H" put downloadtest "data/deep/b.txt" "beta"
+          rm -rf "$RUNNER_TEMP/dl-dest"
+      - id: action
+        uses: .
+        with:
+          action: download
+          connection_string: ${{ env.AZ_CONN }}
+          container_name: downloadtest
+          blob_directory: data
+          local_directory: ${{ runner.temp }}/dl-dest
+      - name: Assert files downloaded
+        run: |
+          # download is not awaited in the action; give it a moment just in case
+          for i in $(seq 1 20); do
+            [ -f "$RUNNER_TEMP/dl-dest/a.txt" ] && [ -f "$RUNNER_TEMP/dl-dest/deep/b.txt" ] && break
+            sleep 1
+          done
+          find "$RUNNER_TEMP/dl-dest" -type f || true
+          [ -f "$RUNNER_TEMP/dl-dest/a.txt" ] || { echo "FAIL: a.txt missing"; exit 1; }
+          [ -f "$RUNNER_TEMP/dl-dest/deep/b.txt" ] || { echo "FAIL: deep/b.txt missing"; exit 1; }
+          A="$(cat "$RUNNER_TEMP/dl-dest/a.txt")"
+          B="$(cat "$RUNNER_TEMP/dl-dest/deep/b.txt")"
+          echo "a: $A  b: $B"
+          [ "$A" = "alpha" ] || { echo "FAIL: a.txt content"; exit 1; }
+          [ "$B" = "beta" ] || { echo "FAIL: b.txt content"; exit 1; }
+          echo "PASS"
