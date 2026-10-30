@@ -6,10 +6,10 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 
 ## Versions
 
-| Version | Tag | Upstream commit |
-|---------|-----|-----------------|
-| v1 | [`v1`](https://github.com/chainguard-actions/ulaval-azure-blob-copy-action/tree/v1) | [`a5589c6`](https://github.com/ulaval/azure-blob-copy-action/commit/a5589c66042be9a15da7cc2a28e63adc3a42af3a) |
-| v1.0 | [`v1.0`](https://github.com/chainguard-actions/ulaval-azure-blob-copy-action/tree/v1.0) | [`a5589c6`](https://github.com/ulaval/azure-blob-copy-action/commit/a5589c66042be9a15da7cc2a28e63adc3a42af3a) |
+| Version | Tag | Upstream commit | Hardening report |
+|---------|-----|-----------------|------------------|
+| v1 | [`v1`](https://github.com/chainguard-actions/ulaval-azure-blob-copy-action/tree/v1) | [`a5589c6`](https://github.com/ulaval/azure-blob-copy-action/commit/a5589c66042be9a15da7cc2a28e63adc3a42af3a) | [`HARDENING.md`](https://github.com/chainguard-actions/ulaval-azure-blob-copy-action/blob/v1/HARDENING.md) |
+| v1.0 | [`v1.0`](https://github.com/chainguard-actions/ulaval-azure-blob-copy-action/tree/v1.0) | [`a5589c6`](https://github.com/ulaval/azure-blob-copy-action/commit/a5589c66042be9a15da7cc2a28e63adc3a42af3a) | [`HARDENING.md`](https://github.com/chainguard-actions/ulaval-azure-blob-copy-action/blob/v1.0/HARDENING.md) |
 
 ## Privacy
 
